@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aplicaciones Netlify</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 800px;
+      width: 100%;
+    }
+
+    h1 {
+      color: white;
+      text-align: center;
+      margin-bottom: 40px;
+      font-size: 2.5em;
+    }
+
+    .apps-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+    }
+
+    .app-card {
+      background: white;
+      border-radius: 15px;
+      padding: 30px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      text-align: center;
+      transition: transform 0.3s, box-shadow 0.3s;
+      cursor: pointer;
+    }
+
+    .app-card:hover {
+      transform: translateY(-10px);
+      box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+    }
+
+    .app-icon {
+      font-size: 3em;
+      margin-bottom: 15px;
+    }
+
+    .app-card h2 {
+      color: #333;
+      margin-bottom: 10px;
+    }
+
+    .app-card p {
+      color: #666;
+      margin-bottom: 20px;
+    }
+
+    .app-card a {
+      display: inline-block;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 12px 30px;
+      border-radius: 10px;
+      text-decoration: none;
+      font-weight: bold;
+      transition: transform 0.2s;
+    }
+
+    .app-card a:hover {
+      transform: scale(1.05);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🚀 Mis Aplicaciones Netlify</h1>
+    
+    <div class="apps-grid">
+      <div class="app-card">
+        <div class="app-icon">✅</div>
+        <h2>Mi Lista de Tareas</h2>
+        <p>Aplicación para gestionar tareas con almacenamiento local</p>
+        <a href="/.netlify/functions/api">Abrir App</a>
+      </div>
+
+      <div class="app-card">
+        <div class="app-icon">📅</div>
+        <h2>Monitor de Renovaciones</h2>
+        <p>Monitorea clientes y fechas de renovación desde Google Sheets</p>
+        <a href="/.netlify/functions/api?path=/monitor">Abrir Monitor</a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
