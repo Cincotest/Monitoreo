@@ -1,466 +1,459 @@
-export default {
-  async fetch(request) {
+const handler = async (event, context) => {
+  const request = new URL(event.rawUrl);
 
-    const sheetId =
-    "1HoTvHDNeP7sJAVUyy4wjug43WtHLYai1DM_ZS_gYmdU";
-
-    const csvUrl =
-    `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv`;
-
-    const url =
-    new URL(request.url);
-
-    /****************************************
-     API INTERNA
+  /****************************************
+     API PARA TAREAS
     ****************************************/
 
-    if(url.pathname === "/api/clientes"){
-
-        const response =
-        await fetch(csvUrl);
-
-        const csv =
-        await response.text();
-
-        const filas =
-        csv.trim().split("\n");
-
-        const clientes = [];
-
-        for(let i=1;i<filas.length;i++){
-
-            const c =
-            filas[i]
-            .split(",");
-
-            if(c.length < 5)
-                continue;
-
-clientes.push({
-    cliente:
-        c[0].replaceAll('"','').trim(),
-
-    conector:
-        c[1].replaceAll('"','').trim(),
-
-    // c[2] es "Fecha Actual" — la saltamos
-
-    fecha:
-        c[3].replaceAll('"','').trim(),   // ← era c[2], ahora c[3]
-
-    url:
-        c[4].replaceAll('"','').trim(),   // ← era c[3], ahora c[4]
-
-    telefono:
-        c[5].replaceAll('"','').trim()    // ← era c[4], ahora c[5]
-    });
-        }
-
-        return Response.json(
-            clientes
-        );
-
-    }
-
-    /****************************************
-     FRONTEND
-    ****************************************/
-
-    const html = `
-<!DOCTYPE html>
-
-<html lang="es">
-
-<head>
-
-<meta charset="UTF-8">
-
-<meta
-name="viewport"
-content="width=device-width,initial-scale=1.0">
-
-<title>
-Monitor Renovaciones
-</title>
-
-<style>
-
-*{
-    margin:0;
-    padding:0;
-    box-sizing:border-box;
-}
-
-body{
-
-    background:#f5f7fb;
-
-    font-family:
-    Arial,
-    sans-serif;
-
-    padding:30px;
-
-}
-
-h1{
-
-    color:#1f2937;
-
-    margin-bottom:20px;
-
-}
-
-.buscador{
-
-    width:100%;
-
-    padding:14px;
-
-    border-radius:10px;
-
-    border:1px solid #ddd;
-
-    margin-bottom:25px;
-
-}
-
-.grid{
-
-    display:grid;
-
-    grid-template-columns:
-    repeat(
-        auto-fill,
-        minmax(320px,1fr)
-    );
-
-    gap:20px;
-
-}
-
-.card{
-
-    background:white;
-
-    border-radius:15px;
-
-    padding:20px;
-
-    box-shadow:
-    0 10px 25px
-    rgba(0,0,0,.08);
-
-    transition:.3s;
-
-}
-
-.card:hover{
-
-    transform:
-    translateY(-5px);
-
-}
-
-.card h3{
-
-    margin-bottom:10px;
-
-}
-
-.card p{
-
-    margin:8px 0;
-
-}
-
-.critico{
-
-    border-left:
-    8px solid #ff1744;
-
-    background:
-    linear-gradient(
-    135deg,
-    #fff3e0,
-    #ffe0b2
-    );
-
-}
-
-.proximo{
-
-    border-left:
-    8px solid #fbc02d;
-
-    background:
-    linear-gradient(
-    135deg,
-    #fffde7,
-    #fff59d
-    );
-
-}
-
-.normal{
-
-    border-left:
-    8px solid #4caf50;
-
-}
-
-.badge{
-
-    display:inline-block;
-
-    padding:
-    6px 12px;
-
-    border-radius:20px;
-
-    font-size:12px;
-
-    font-weight:bold;
-
-}
-
-.badge-critico{
-
-    background:#ff1744;
-
-    color:white;
-
-}
-
-.badge-proximo{
-
-    background:#fbc02d;
-
-}
-
-.badge-normal{
-
-    background:#4caf50;
-
-    color:white;
-
-}
-
-.link{
-
-    display:inline-block;
-
-    margin-top:10px;
-
-    text-decoration:none;
-
-    color:#1565c0;
-
-    font-weight:bold;
-
-}
-
-.tooltip{
-
-    position:relative;
-
-    cursor:pointer;
-
-}
-
-.tooltip .tooltiptext{
-
-    visibility:hidden;
-
-    width:140px;
-
-    background:#333;
-
-    color:#fff;
-
-    text-align:center;
-
-    border-radius:8px;
-
-    padding:8px;
-
-    position:absolute;
-
-    bottom:130%;
-
-    left:50%;
-
-    margin-left:-70px;
-
-}
-
-.tooltip:hover .tooltiptext{
-
-    visibility:visible;
-
-}
-
-</style>
-
-</head>
-
-<body>
-
-<h1>
-📅 Monitor de Renovaciones
-</h1>
-
-<input
-class="buscador"
-id="buscar"
-placeholder="Buscar cliente...">
-
-<div
-class="grid"
-id="contenedor">
-</div>
-
-<script>
-function calcularDias(fecha){
-
-    const partes =
-    fecha.split("/");
-
-    if(partes.length !== 3)
-        return 999;
-
-    const vencimiento =
-    new Date(
-        Number(partes[2]),
-        Number(partes[1]) - 1,
-        Number(partes[0])
-    );
-
-    const hoy =
-    new Date();
-
-    hoy.setHours(0,0,0,0);
-
-    return Math.ceil(
-        (vencimiento - hoy) /
-        (1000 * 60 * 60 * 24)
-    );
-
-}
-
-function obtenerEstado(dias){
-
-    if(dias <= 2){
-
-        return {
-            clase:"critico",
-            badge:"badge-critico",
-            texto:"🟠 Vencido"
-        };
-
-    }
-
-    if(dias <= 7){
-
-        return {
-            clase:"proximo",
-            badge:"badge-proximo",
-            texto:"🟡 Próximo"
-        };
-
+  if(request.pathname === "/.netlify/functions/api" && request.searchParams.get("path") === "/api/tareas"){
+    
+    if(event.httpMethod === "GET"){
+      return {
+        statusCode: 200,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: "GET /api/tareas - obtiene todas las tareas desde localStorage"
+        })
+      };
     }
 
     return {
-        clase:"normal",
-        badge:"badge-normal",
-        texto:"🟢 Activo"
+      statusCode: 200,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: "API de tareas disponible"
+      })
     };
-
-}
-
-function renderizar(clientes) {
-    const contenedor = document.getElementById("contenedor");
-    let html = "";
- 
-    clientes.forEach(cliente => {
-      const dias   = calcularDias(cliente.fecha);
-      const estado = obtenerEstado(dias);
- 
-      html += \`
-        <div class="\${estado.clase} card">
-          <h3>\${cliente.cliente}</h3>
-          <p><strong>Conector:</strong> \${cliente.conector}</p>
-          <p>
-            <span class="badge \${estado.badge} tooltip">
-              \${estado.texto}
-              <span class="tooltiptext">Vence en \${dias} días</span>
-            </span>
-          </p>
-          <p><strong>Fecha:</strong> \${cliente.fecha}</p>
-          <p><strong>Tel:</strong> \${cliente.telefono}</p>
-          <a class="link" href="\${cliente.url}" target="_blank">Abrir instancia</a>
-        </div>
-      \`;
-    });
-
-contenedor.innerHTML = html;
-
-}
-
-let todos = [];
-
-async function cargarDatos(){
-
-    const response =
-    await fetch(
-        "/api/clientes"
-    );
-
-    todos =
-    await response.json();
-
-    renderizar(
-        todos
-    );
-
-}
-
-document
-.getElementById(
-"buscar"
-)
-.addEventListener(
-"input",
-function(){
-
-    const texto =
-    this.value
-    .toLowerCase();
-
-    const filtrados =
-    todos.filter(c =>
-
-        c.cliente
-        .toLowerCase()
-        .includes(texto)
-
-    );
-
-    renderizar(
-        filtrados
-    );
-
-});
-
- cargarDatos();
- 
-\<\/script>
-</body>
-</html>\`;
- 
-    return new Response(html, {
-      headers: { "Content-Type": "text/html;charset=UTF-8" }
-    });
- 
   }
+
+  /****************************************
+     FRONTEND - TO-DO LIST
+    ****************************************/
+
+  const html = `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mi Lista de Tareas</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .container {
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      max-width: 600px;
+      width: 100%;
+      padding: 40px;
+    }
+
+    h1 {
+      color: #333;
+      margin-bottom: 30px;
+      text-align: center;
+      font-size: 2.5em;
+    }
+
+    .input-container {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 30px;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      padding: 15px;
+      border: 2px solid #e0e0e0;
+      border-radius: 10px;
+      font-size: 16px;
+      transition: border-color 0.3s;
+    }
+
+    input[type="text"]:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    button {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 15px 30px;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    .stats {
+      display: flex;
+      justify-content: space-around;
+      margin-bottom: 30px;
+      padding: 20px;
+      background: #f5f5f5;
+      border-radius: 10px;
+      text-align: center;
+    }
+
+    .stat {
+      flex: 1;
+    }
+
+    .stat-number {
+      font-size: 2em;
+      font-weight: bold;
+      color: #667eea;
+    }
+
+    .stat-label {
+      color: #666;
+      font-size: 0.9em;
+      margin-top: 5px;
+    }
+
+    .tareas-list {
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    .tarea-item {
+      display: flex;
+      align-items: center;
+      padding: 15px;
+      background: #f9f9f9;
+      border-radius: 10px;
+      margin-bottom: 10px;
+      transition: all 0.3s;
+    }
+
+    .tarea-item:hover {
+      background: #f0f0f0;
+      transform: translateX(5px);
+    }
+
+    .tarea-item.completada {
+      opacity: 0.6;
+    }
+
+    .tarea-item.completada .tarea-texto {
+      text-decoration: line-through;
+      color: #999;
+    }
+
+    input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      margin-right: 15px;
+      cursor: pointer;
+    }
+
+    .tarea-texto {
+      flex: 1;
+      font-size: 16px;
+      color: #333;
+    }
+
+    .tarea-fecha {
+      font-size: 0.8em;
+      color: #999;
+      margin-right: 15px;
+    }
+
+    .btn-eliminar {
+      background: #ff6b6b;
+      padding: 8px 15px;
+      font-size: 14px;
+      border-radius: 5px;
+    }
+
+    .btn-eliminar:hover {
+      background: #ff5252;
+    }
+
+    .tareas-vacio {
+      text-align: center;
+      padding: 40px 20px;
+      color: #999;
+    }
+
+    .tareas-vacio svg {
+      width: 80px;
+      height: 80px;
+      margin-bottom: 20px;
+      opacity: 0.5;
+    }
+
+    .filtros {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      justify-content: center;
+    }
+
+    .filtro-btn {
+      background: #e0e0e0;
+      color: #333;
+      padding: 8px 15px;
+      border-radius: 20px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .filtro-btn.activo {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    .acciones {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+      justify-content: center;
+    }
+
+    .btn-limpiar {
+      background: #ff9800;
+      padding: 10px 20px;
+      font-size: 14px;
+    }
+
+    .btn-limpiar:hover {
+      background: #fb8c00;
+    }
+
+    @media (max-width: 600px) {
+      .container {
+        padding: 20px;
+      }
+
+      h1 {
+        font-size: 1.8em;
+      }
+
+      .input-container {
+        flex-direction: column;
+      }
+
+      .stats {
+        flex-direction: column;
+        gap: 15px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>✅ Mi Lista de Tareas</h1>
+
+    <div class="input-container">
+      <input 
+        type="text" 
+        id="inputTarea" 
+        placeholder="Escribe una nueva tarea..."
+        autocomplete="off"
+      >
+      <button onclick="agregarTarea()">Agregar</button>
+    </div>
+
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-number" id="totalTareas">0</div>
+        <div class="stat-label">Total</div>
+      </div>
+      <div class="stat">
+        <div class="stat-number" id="completadasTareas">0</div>
+        <div class="stat-label">Completadas</div>
+      </div>
+      <div class="stat">
+        <div class="stat-number" id="pendientesTareas">0</div>
+        <div class="stat-label">Pendientes</div>
+      </div>
+    </div>
+
+    <div class="filtros">
+      <button class="filtro-btn activo" onclick="filtrar('todas')">Todas</button>
+      <button class="filtro-btn" onclick="filtrar('pendientes')">Pendientes</button>
+      <button class="filtro-btn" onclick="filtrar('completadas')">Completadas</button>
+    </div>
+
+    <div class="tareas-list" id="tareasList"></div>
+
+    <div class="acciones">
+      <button class="btn-limpiar" onclick="limpiarCompletadas()">Limpiar completadas</button>
+    </div>
+  </div>
+
+  <script>
+    let tareas = [];
+    let filtroActual = 'todas';
+
+    // Cargar tareas del localStorage
+    function cargarTareas() {
+      const tareasGuardadas = localStorage.getItem('tareas');
+      if (tareasGuardadas) {
+        tareas = JSON.parse(tareasGuardadas);
+      }
+      renderizar();
+    }
+
+    // Guardar tareas en localStorage
+    function guardarTareas() {
+      localStorage.setItem('tareas', JSON.stringify(tareas));
+    }
+
+    // Agregar nueva tarea
+    function agregarTarea() {
+      const input = document.getElementById('inputTarea');
+      const texto = input.value.trim();
+
+      if (texto === '') {
+        alert('Por favor escribe una tarea');
+        return;
+      }
+
+      const tarea = {
+        id: Date.now(),
+        texto: texto,
+        completada: false,
+        fecha: new Date().toLocaleDateString('es-ES')
+      };
+
+      tareas.unshift(tarea);
+      guardarTareas();
+      input.value = '';
+      renderizar();
+    }
+
+    // Completar/descompletar tarea
+    function toggleTarea(id) {
+      const tarea = tareas.find(t => t.id === id);
+      if (tarea) {
+        tarea.completada = !tarea.completada;
+        guardarTareas();
+        renderizar();
+      }
+    }
+
+    // Eliminar tarea
+    function eliminarTarea(id) {
+      tareas = tareas.filter(t => t.id !== id);
+      guardarTareas();
+      renderizar();
+    }
+
+    // Limpiar todas las completadas
+    function limpiarCompletadas() {
+      if (tareas.some(t => t.completada)) {
+        if (confirm('¿Eliminar todas las tareas completadas?')) {
+          tareas = tareas.filter(t => !t.completada);
+          guardarTareas();
+          renderizar();
+        }
+      }
+    }
+
+    // Filtrar tareas
+    function filtrar(tipo) {
+      filtroActual = tipo;
+      document.querySelectorAll('.filtro-btn').forEach(btn => btn.classList.remove('activo'));
+      event.target.classList.add('activo');
+      renderizar();
+    }
+
+    // Actualizar estadísticas
+    function actualizarStats() {
+      const total = tareas.length;
+      const completadas = tareas.filter(t => t.completada).length;
+      const pendientes = total - completadas;
+
+      document.getElementById('totalTareas').textContent = total;
+      document.getElementById('completadasTareas').textContent = completadas;
+      document.getElementById('pendientesTareas').textContent = pendientes;
+    }
+
+    // Renderizar lista
+    function renderizar() {
+      const lista = document.getElementById('tareasList');
+      let tareasFiltradas = tareas;
+
+      if (filtroActual === 'completadas') {
+        tareasFiltradas = tareas.filter(t => t.completada);
+      } else if (filtroActual === 'pendientes') {
+        tareasFiltradas = tareas.filter(t => !t.completada);
+      }
+
+      actualizarStats();
+
+      if (tareasFiltradas.length === 0) {
+        lista.innerHTML = \`
+          <div class="tareas-vacio">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p>No hay tareas aquí</p>
+          </div>
+        \`;
+        return;
+      }
+
+      lista.innerHTML = tareasFiltradas.map(tarea => \`
+        <div class="tarea-item \${tarea.completada ? 'completada' : ''}">
+          <input 
+            type="checkbox" 
+            \${tarea.completada ? 'checked' : ''}
+            onchange="toggleTarea(\${tarea.id})"
+          >
+          <div class="tarea-texto">\${tarea.texto}</div>
+          <div class="tarea-fecha">\${tarea.fecha}</div>
+          <button class="btn-eliminar" onclick="eliminarTarea(\${tarea.id})">Eliminar</button>
+        </div>
+      \`).join('');
+    }
+
+    // Permitir agregar tarea con Enter
+    document.addEventListener('DOMContentLoaded', function() {
+      cargarTareas();
+      document.getElementById('inputTarea').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+          agregarTarea();
+        }
+      });
+    });
+  </script>
+</body>
+</html>
+  `;
+
+  return {
+    statusCode: 200,
+    headers: { "Content-Type": "text/html;charset=UTF-8" },
+    body: html
+  };
 };
+
+module.exports = { handler };
